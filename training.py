@@ -9,6 +9,7 @@ import random
 from typing import List, Tuple, Optional
 import time
 import torch
+import matplotlib.pyplot as plt
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
@@ -204,6 +205,18 @@ class CustomCallback(BaseCallback):
         self.last_step_time = time.time()
         self.step_timeout = 30  # Consider it hung if no step for 30 seconds
         
+        # Training data collection for plotting
+        self.training_data = {
+            'timesteps': [],
+            'mean_rewards': [],
+            'eval_timesteps': [],
+            'eval_mean_rewards': [],
+            'episode_lengths': [],
+            'digits_cleared': []
+        }
+        self.last_eval_reward = None
+        self.model_timestamp = None  # Will be set when model is saved
+
     def _on_step(self) -> bool:
         try:
             current_time = time.time()
@@ -240,6 +253,11 @@ class CustomCallback(BaseCallback):
                     mean_length = np.mean([ep_info["l"] for ep_info in self.model.ep_info_buffer])
                     print(f"Current mean reward: {mean_reward:.2f}")
                     print(f"Current mean episode length: {mean_length:.1f}")
+                    
+                    # Collect training data for plotting
+                    self.training_data['timesteps'].append(self.num_timesteps)
+                    self.training_data['mean_rewards'].append(mean_reward)
+                    self.training_data['episode_lengths'].append(mean_length)
                 
                 self.last_print_time = current_time
             
@@ -265,6 +283,11 @@ class CustomCallback(BaseCallback):
                             self.best_model_path = f"models/best_model_{int(time.time())}.zip"
                             self.model.save(self.best_model_path)
                             print(f"New best model saved to {self.best_model_path}")
+                        
+                        # Collect evaluation data for plotting
+                        self.training_data['eval_timesteps'].append(self.num_timesteps)
+                        self.training_data['eval_mean_rewards'].append(mean_reward)
+                        self.last_eval_reward = mean_reward
                     else:
                         # Original evaluation on random grids
                         mean_reward = np.mean([ep_info["r"] for ep_info in self.model.ep_info_buffer])
@@ -279,6 +302,11 @@ class CustomCallback(BaseCallback):
                             self.best_model_path = f"models/best_model_{int(time.time())}.zip"
                             self.model.save(self.best_model_path)
                             print(f"New best model saved to {self.best_model_path}")
+                        
+                        # Collect evaluation data for plotting
+                        self.training_data['eval_timesteps'].append(self.num_timesteps)
+                        self.training_data['eval_mean_rewards'].append(mean_reward)
+                        self.last_eval_reward = mean_reward
                 except Exception as e:
                     print(f"\nERROR during validation: {str(e)}")
                     print("Continuing training...")
@@ -344,6 +372,120 @@ class CustomCallback(BaseCallback):
         if self.eval_verbose:
             print(f"Evaluation completed. Mean reward: {mean_reward:.2f}")
         return mean_reward
+
+
+def create_training_plot(training_data, model_timestamp, save_dir="plots"):
+    """
+    Create and save training performance plots.
+    
+    Args:
+        training_data: Dictionary containing training metrics
+        model_timestamp: Timestamp of the model for naming the plot file
+        save_dir: Directory to save the plot
+    """
+    # Create plots directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Create figure with subplots
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
+    fig.suptitle(f'Training Performance - Model {model_timestamp}', fontsize=16)
+    
+    # Plot 1: Mean Reward over Time
+    if training_data['timesteps'] and training_data['mean_rewards']:
+        ax1.plot(training_data['timesteps'], training_data['mean_rewards'], 
+                'b-', alpha=0.7, label='Training Reward')
+        ax1.set_xlabel('Training Steps')
+        ax1.set_ylabel('Mean Reward')
+        ax1.set_title('Training Reward Over Time')
+        ax1.grid(True, alpha=0.3)
+        ax1.legend()
+    
+    # Plot 2: Evaluation Reward over Time
+    if training_data['eval_timesteps'] and training_data['eval_mean_rewards']:
+        ax2.plot(training_data['eval_timesteps'], training_data['eval_mean_rewards'], 
+                'r-', marker='o', markersize=4, label='Evaluation Reward')
+        ax2.set_xlabel('Training Steps')
+        ax2.set_ylabel('Mean Reward')
+        ax2.set_title('Evaluation Reward Over Time')
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+    
+    # Plot 3: Episode Length over Time
+    if training_data['timesteps'] and training_data['episode_lengths']:
+        ax3.plot(training_data['timesteps'], training_data['episode_lengths'], 
+                'g-', alpha=0.7, label='Episode Length')
+        ax3.set_xlabel('Training Steps')
+        ax3.set_ylabel('Mean Episode Length')
+        ax3.set_title('Episode Length Over Time')
+        ax3.grid(True, alpha=0.3)
+        ax3.legend()
+    
+    # Plot 4: Combined Training and Evaluation
+    if (training_data['timesteps'] and training_data['mean_rewards'] and 
+        training_data['eval_timesteps'] and training_data['eval_mean_rewards']):
+        ax4.plot(training_data['timesteps'], training_data['mean_rewards'], 
+                'b-', alpha=0.7, label='Training Reward')
+        ax4.plot(training_data['eval_timesteps'], training_data['eval_mean_rewards'], 
+                'r-', marker='o', markersize=4, label='Evaluation Reward')
+        ax4.set_xlabel('Training Steps')
+        ax4.set_ylabel('Mean Reward')
+        ax4.set_title('Training vs Evaluation Reward')
+        ax4.grid(True, alpha=0.3)
+        ax4.legend()
+    
+    # Adjust layout and save
+    plt.tight_layout()
+    plot_filename = f"training_performance_{model_timestamp}.png"
+    plot_path = os.path.join(save_dir, plot_filename)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print(f"Training performance plot saved to: {plot_path}")
+    return plot_path
+
+
+def save_training_data(training_data, model_timestamp, save_dir="training_data"):
+    """
+    Save training data to a file for later analysis.
+    
+    Args:
+        training_data: Dictionary containing training metrics
+        model_timestamp: Timestamp of the model for naming the file
+        save_dir: Directory to save the data
+    """
+    os.makedirs(save_dir, exist_ok=True)
+    data_filename = f"training_data_{model_timestamp}.pkl"
+    data_path = os.path.join(save_dir, data_filename)
+    
+    with open(data_path, 'wb') as f:
+        pickle.dump(training_data, f)
+    
+    print(f"Training data saved to: {data_path}")
+    return data_path
+
+
+def load_training_data(model_timestamp, save_dir="training_data"):
+    """
+    Load training data from a file.
+    
+    Args:
+        model_timestamp: Timestamp of the model
+        save_dir: Directory containing the data file
+        
+    Returns:
+        Dictionary containing training metrics
+    """
+    data_filename = f"training_data_{model_timestamp}.pkl"
+    data_path = os.path.join(save_dir, data_filename)
+    
+    if os.path.exists(data_path):
+        with open(data_path, 'rb') as f:
+            training_data = pickle.load(f)
+        print(f"Training data loaded from: {data_path}")
+        return training_data
+    else:
+        print(f"Training data file not found: {data_path}")
+        return None
 
 
 # --- 3. Main Training Script ---
@@ -703,14 +845,17 @@ def train_model_with_saved_grids(model_path: Optional[str] = None,
         eval_episodes = 3   # Default: 3 episodes
         eval_verbose = True # Default: verbose output
     
+    # Create callback
+    callback = CustomCallback(
+        val_grids=val_grids,
+        eval_freq=eval_freq,
+        eval_episodes=eval_episodes,
+        eval_verbose=eval_verbose
+    )
+    
     model.learn(
         total_timesteps=total_timesteps,
-        callback=CustomCallback(
-            val_grids=val_grids,
-            eval_freq=eval_freq,
-            eval_episodes=eval_episodes,
-            eval_verbose=eval_verbose
-        )
+        callback=callback
     )
     
     # Save the model
@@ -718,6 +863,12 @@ def train_model_with_saved_grids(model_path: Optional[str] = None,
     save_path = f"models/model_{timestamp}.zip"
     model.save(save_path)
     print(f"\nSaved model to {save_path}")
+
+    # Create training plot
+    create_training_plot(callback.training_data, timestamp)
+    
+    # Save training data
+    save_training_data(callback.training_data, timestamp)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train model using saved grids')
@@ -734,12 +885,21 @@ if __name__ == "__main__":
     parser.add_argument('--tensorboard', action='store_true', help='Enable tensorboard logging')
     parser.add_argument('--fast', action='store_true', help='Use fast training mode with optimized parameters')
     parser.add_argument('--fast-eval', action='store_true', help='Use fast evaluation mode (less frequent, fewer episodes)')
+    parser.add_argument('--create-plot', help='Create training plot for a specific model timestamp')
     args = parser.parse_args()
     
     # Always use CPU for Intel/AMD systems
     device = torch.device("cpu")
     print("Using CPU for training (optimized for Intel i9)")
     
+    if args.create_plot:
+        # Create plot for existing model
+        training_data = load_training_data(args.create_plot)
+        if training_data:
+            create_training_plot(training_data, args.create_plot)
+        else:
+            print(f"Could not load training data for model {args.create_plot}")
+
     if args.use_saved_grids:
         # Use saved grids for training
         train_model_with_saved_grids(
@@ -858,7 +1018,3 @@ if __name__ == "__main__":
         
         # Save the model
         save_model(model)
-
-    collector = TrainingDataCollector()
-    grid = EXAMPLE_GRID  # Replace with your actual grid
-    collect_training_data_from_model(grid, args.model, collector)

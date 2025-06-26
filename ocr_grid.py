@@ -15,7 +15,7 @@ class Digit:
         self.inner_contour = inner_contour
         self.bbox = bbox
 
-    def __str__(self) -> np.str:
+    def __str__(self) -> str:
         return f"Digit(image={self.image}, contour={self.contour}, inner_contour={self.inner_contour}, bbox={self.bbox})"
 
 def crop_and_normalize_digit(digit_img, target_size=(32, 32)):

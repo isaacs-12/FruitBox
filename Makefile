@@ -12,7 +12,7 @@ run-test:
 
 # Virtual environment management
 venv-create:
-	python3.7 -m venv fruitbox_env
+	python3 -m venv fruitbox_env
 	. fruitbox_env/bin/activate && pip install --upgrade pip
 	. fruitbox_env/bin/activate && pip install -r requirements.txt
 	. fruitbox_env/bin/activate && pip install tensorboard
@@ -95,4 +95,21 @@ solve-quiet:
 	fi
 	. fruitbox_env/bin/activate && python training.py --mode solve --model-path $(MODEL) --no-render
 
-.PHONY: run run-verbose run-test venv-create venv-activate train train-long train-fast train-fast-quick train-fast-tensorboard train-clean evaluate evaluate-many continue-train continue-train-long list-models clean solve solve-quiet
+# Create training plots
+plot:
+	@echo "Creating training performance plots..."
+	@echo "Available models:"
+	@ls -1 models/*.zip 2>/dev/null | sed 's/models\///' | sed 's/\.zip//' || echo "No models found"
+	@echo ""
+	@echo "To create a plot for a specific model, use:"
+	@echo "make plot-model MODEL=model_timestamp"
+
+plot-model:
+	@if [ -z "$(MODEL)" ]; then \
+		echo "Error: Please specify a model timestamp using MODEL=timestamp"; \
+		echo "Example: make plot-model MODEL=20250617_220933"; \
+		exit 1; \
+	fi
+	. fruitbox_env/bin/activate && python training.py --create-plot $(MODEL)
+
+.PHONY: run run-verbose run-test venv-create venv-activate train train-long train-fast train-fast-quick train-fast-tensorboard train-clean evaluate evaluate-many continue-train continue-train-long list-models clean solve solve-quiet plot plot-model
