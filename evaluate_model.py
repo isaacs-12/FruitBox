@@ -10,6 +10,7 @@ import numpy as np
 from stable_baselines3 import PPO
 from training import RectangleEnv
 import argparse
+import random
 
 def get_latest_model():
     """Get the path to the most recent model file."""
@@ -21,20 +22,38 @@ def get_latest_model():
     latest_model = max(model_files, key=os.path.getmtime)
     return latest_model
 
-def get_random_training_grid():
-    """Load a random training grid."""
+def get_random_test_grid():
+    """Load a random test grid (separate from training data)."""
+    # Try test directory first (proper evaluation)
+    test_files = glob.glob("data/test/*.pkl")
+    if test_files:
+        random_grid_file = random.choice(test_files)
+        with open(random_grid_file, 'rb') as f:
+            grid = pickle.load(f)
+        return grid, os.path.basename(random_grid_file)
+    
+    # Fallback to validation directory
+    val_files = glob.glob("data/validation/*.pkl")
+    if val_files:
+        random_grid_file = random.choice(val_files)
+        with open(random_grid_file, 'rb') as f:
+            grid = pickle.load(f)
+        return grid, os.path.basename(random_grid_file)
+    
+    # Last resort: training grids (not recommended)
     grid_files = glob.glob("training_grids/*.pkl")
-    if not grid_files:
-        raise FileNotFoundError("No training grid files found in training_grids/ directory")
+    if grid_files:
+        print("⚠️  WARNING: Using training data for evaluation (data contamination risk!)")
+        random_grid_file = random.choice(grid_files)
+        with open(random_grid_file, 'rb') as f:
+            grid = pickle.load(f)
+        return grid, os.path.basename(random_grid_file)
     
-    # Pick a random grid file
-    import random
-    random_grid_file = random.choice(grid_files)
-    
-    with open(random_grid_file, 'rb') as f:
-        grid = pickle.load(f)
-    
-    return grid, os.path.basename(random_grid_file)
+    raise FileNotFoundError("No grid files found in data/test/, data/validation/, or training_grids/ directories")
+
+def get_random_training_grid():
+    """Load a random training grid (for backward compatibility)."""
+    return get_random_test_grid()
 
 def evaluate_model_on_grid(model_path, grid, grid_name=None):
     """Evaluate a model on a specific grid and return detailed results."""

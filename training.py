@@ -203,7 +203,7 @@ class CustomCallback(BaseCallback):
         self.last_print_time = time.time()
         self.print_freq = 10  # Print progress every 10 seconds
         self.last_step_time = time.time()
-        self.step_timeout = 30  # Consider it hung if no step for 30 seconds
+        self.step_timeout = 300  # Consider it hung if no step for 5 minutes (increased from 30 seconds)
         
         # Training data collection for plotting
         self.training_data = {
@@ -344,7 +344,7 @@ class CustomCallback(BaseCallback):
                 episode_reward = 0
                 step_count = 0
                 
-                while not done and step_count < 1000:  # Add safety limit
+                while not done and step_count < 2000:  # Increased safety limit from 1000 to 2000
                     action, _ = self.model.predict(obs, deterministic=True)
                     if isinstance(action, np.ndarray):
                         action = action.item()  # Convert numpy array to scalar
@@ -356,7 +356,7 @@ class CustomCallback(BaseCallback):
                     if self.eval_verbose and step_count % 100 == 0:
                         print(f"      Step {step_count}, reward so far: {episode_reward:.2f}")
                 
-                if step_count >= 1000:
+                if step_count >= 2000:
                     if self.eval_verbose:
                         print(f"    WARNING: Episode stopped after {step_count} steps (safety limit)")
                 
@@ -715,23 +715,21 @@ def get_device():
         return torch.device("cpu")
 
 def train_model_with_saved_grids(model_path: Optional[str] = None,
-                               data_dir: str = "training_grids",
+                               data_dir: str = "data/train",  # Changed default to organized train directory
+                               val_dir: str = "data/validation",  # Added validation directory parameter
                                total_timesteps: int = 1_000_000,
-                               train_ratio: float = 0.8,
-                               val_ratio: float = 0.1,
                                verbose: int = 1,
                                use_tensorboard: bool = False,
                                fast_mode: bool = False,
                                fast_eval: bool = False) -> None:
     """
-    Train a model using saved grids.
+    Train a model using organized data directories.
     
     Args:
         model_path: Path to existing model to continue training (None for new model)
-        data_dir: Directory containing saved grids
+        data_dir: Directory containing training grids (data/train)
+        val_dir: Directory containing validation grids (data/validation)
         total_timesteps: Number of timesteps to train for
-        train_ratio: Proportion of grids to use for training
-        val_ratio: Proportion of grids to use for validation
         verbose: Verbosity level for training
         use_tensorboard: Whether to enable tensorboard logging
         fast_mode: Whether to use faster training settings
@@ -741,19 +739,34 @@ def train_model_with_saved_grids(model_path: Optional[str] = None,
     device = torch.device("cpu")
     print("Using CPU for training (optimized for Intel i9)")
     
-    # Load and prepare grids
-    grids = load_training_grids(data_dir)
-    if not grids:
-        print("No training data available")
+    # Check if organized data directories exist
+    if not os.path.exists(data_dir):
+        print(f"❌ Training data directory not found: {data_dir}")
+        print("Please run 'make organize-data' first to organize your data.")
         return
     
-    # Analyze the grids
-    analyze_grids(grids)
+    if not os.path.exists(val_dir):
+        print(f"❌ Validation data directory not found: {val_dir}")
+        print("Please run 'make organize-data' first to organize your data.")
+        return
     
-    # Split into train/val/test sets
-    train_grids, val_grids, test_grids = prepare_training_data(
-        grids, train_ratio=train_ratio, val_ratio=val_ratio
-    )
+    # Load training grids
+    train_grids = load_training_grids(data_dir)
+    if not train_grids:
+        print(f"No training data available in {data_dir}")
+        return
+    
+    # Load validation grids
+    val_grids = load_training_grids(val_dir)
+    if not val_grids:
+        print(f"No validation data available in {val_dir}")
+        return
+    
+    print(f"✅ Loaded {len(train_grids)} training grids from {data_dir}")
+    print(f"✅ Loaded {len(val_grids)} validation grids from {val_dir}")
+    
+    # Analyze the training grids
+    analyze_grids(train_grids)
     
     # Create vectorized environment with training grids
     # Use fewer environments in fast mode
@@ -833,8 +846,8 @@ def train_model_with_saved_grids(model_path: Optional[str] = None,
     
     # Configure evaluation settings based on fast_eval
     if fast_eval:
-        eval_freq = 20000  # Evaluate every 20k steps instead of 10k
-        eval_episodes = 2   # Only 2 episodes per evaluation
+        eval_freq = 50000  # Evaluate every 50k steps instead of 20k (much less frequent)
+        eval_episodes = 1   # Only 1 episode per evaluation (faster)
         eval_verbose = False  # Minimal output
         print("Using fast evaluation mode:")
         print(f"  - Evaluation frequency: every {eval_freq:,} steps")
@@ -875,9 +888,10 @@ if __name__ == "__main__":
     parser.add_argument('--mode', choices=['train', 'evaluate', 'solve', 'continue'], default='train',
                       help='Mode to run the script in')
     parser.add_argument('--model', help='Path to existing model to continue training')
-    parser.add_argument('--data-dir', default='training_grids', help='Directory containing saved grids')
+    parser.add_argument('--data-dir', default='data/train', help='Directory containing training grids (default: data/train)')
+    parser.add_argument('--val-dir', default='data/validation', help='Directory containing validation grids (default: data/validation)')
     parser.add_argument('--timesteps', type=int, default=1_000_000, help='Number of timesteps to train for')
-    parser.add_argument('--use-saved-grids', action='store_true', help='Use saved grids for training')
+    parser.add_argument('--use-saved-grids', action='store_true', help='Use organized data directories for training')
     parser.add_argument('--analyze-only', action='store_true', help='Only analyze grids without training')
     parser.add_argument('--eval-episodes', type=int, default=5, help='Number of episodes for evaluation')
     parser.add_argument('--no-render', action='store_true', help='Disable rendering during evaluation/solving')
@@ -901,10 +915,11 @@ if __name__ == "__main__":
             print(f"Could not load training data for model {args.create_plot}")
 
     if args.use_saved_grids:
-        # Use saved grids for training
+        # Use organized data directories for training
         train_model_with_saved_grids(
             model_path=args.model,
             data_dir=args.data_dir,
+            val_dir=args.val_dir,
             total_timesteps=args.timesteps,
             use_tensorboard=args.tensorboard,
             fast_mode=args.fast,

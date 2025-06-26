@@ -21,7 +21,14 @@ venv-activate:
 	@echo "To activate the virtual environment, run:"
 	@echo "source fruitbox_env/bin/activate"
 
-# Training commands
+# Data organization (IMPORTANT: Run this first to prevent data contamination!)
+organize-data:
+	. fruitbox_env/bin/activate && python organize_data.py
+
+organize-data-verify:
+	. fruitbox_env/bin/activate && python organize_data.py --verify
+
+# Training commands (IMPORTANT: Run 'make organize-data' first!)
 train:
 	. fruitbox_env/bin/activate && python training.py --mode train
 
@@ -54,7 +61,7 @@ evaluate-many:
 	fi
 	. fruitbox_env/bin/activate && python training.py --mode evaluate --model-path $(MODEL) --eval-episodes 10
 
-# Evaluate latest model on training grid
+# Evaluate latest model on test data (proper evaluation)
 evaluate-latest:
 	. fruitbox_env/bin/activate && python evaluate_model.py
 
@@ -119,4 +126,4 @@ plot-model:
 	fi
 	. fruitbox_env/bin/activate && python training.py --create-plot $(MODEL)
 
-.PHONY: run run-verbose run-test venv-create venv-activate train train-long train-fast train-fast-quick train-fast-tensorboard train-clean evaluate evaluate-many evaluate-latest evaluate-latest-many continue-train continue-train-long list-models clean solve solve-quiet plot plot-model
+.PHONY: run run-verbose run-test venv-create venv-activate organize-data organize-data-verify train train-long train-fast train-fast-quick train-fast-tensorboard train-clean evaluate evaluate-many evaluate-latest evaluate-latest-many continue-train continue-train-long list-models clean solve solve-quiet plot plot-model

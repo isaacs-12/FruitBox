@@ -1,1 +1,6 @@
-logs/
+logs/*
+*.csv
+*.*.csv
+
+*.pyc
+__pycache__/*
