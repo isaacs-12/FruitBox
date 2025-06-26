@@ -4,11 +4,15 @@ FruitBox is an intelligent automation system that solves grid-based puzzles by c
 
 ## 🎯 Project Overview
 
-This project automates the solving of grid puzzles where:
+This project automates the solving of the FruitBox game puzzles where:
 - A grid contains digits 1-9
 - Players must find rectangles where the sum of digits equals 10
 - The goal is to clear as many digits as possible
 - The system uses AI to learn optimal solving strategies
+
+Example board:
+![image](https://github.com/user-attachments/assets/9750e323-de96-4bf6-abee-af6033f9763c)
+
 
 ## 🏗️ Architecture
 
@@ -79,6 +83,8 @@ FruitBox/
 ├── training_data/        # Training episode data
 ├── logs/                 # Training logs
 └── test_data/           # Test images
+└── data/                 # Grids parsed into train/test/eval for isolation
+
 ```
 
 ## 🛠️ Installation
@@ -253,12 +259,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Screen coordinates may need adjustment for different screen resolutions
 - OCR accuracy can vary based on font and image quality
-- Training requires significant computational resources
-
-## 🔮 Future Improvements
-
-- [ ] Support for different grid sizes
-- [ ] Improved OCR accuracy with custom training
-- [ ] Real-time adaptation to game changes
-- [ ] Web interface for configuration
-- [ ] Support for multiple game variants
+- Training requires significant computational resources (though it will take advantage of your hardware if you have Apple Silicon, NVidia Cuda, or just a CPU)
