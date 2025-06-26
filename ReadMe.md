@@ -1,6 +1,6 @@
 # FruitBox - AI-Powered Grid Puzzle Solver
 
-FruitBox is an intelligent automation system that solves grid-based puzzles by combining computer vision, machine learning, and automated clicking. The project specifically targets games where players must find rectangles of digits that sum to 10.
+FruitBoxAI is an intelligent automation system that solves grid-based puzzles by combining computer vision, machine learning, and automated clicking. The project specifically targets games where players must find rectangles of digits that sum to 10 (e.g. in the original FruitBox game). Although this is most interestingly an AI application, it started as a more heuristic solution. The OCR is optimized for speed (on the order of ms for parsing an entire board), and the heuristic method still performs exceptionally well (over ~600 games, it peaked at a score of 135). The AI models are significantly better, consistently scoring in the high 130s to low 140s, with much higher potential.
 
 ## 🎯 Project Overview
 
