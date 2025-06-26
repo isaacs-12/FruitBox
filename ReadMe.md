@@ -361,6 +361,12 @@ region = (18, 202, 1223, 723)  # (left, top, width, height)
 screen_offset = (18, 202)     # (x, y) offset
 ```
 
+and also the coordinates of the start and reset buttons to enable auto-play:
+```python
+RESET_LOC = (55,1011)
+PLAY_LOC = (320,613)
+```
+
 ### Solving Methods
 Choose from different solving approaches:
 - `'template'` - Template matching for digit recognition
