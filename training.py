@@ -344,7 +344,7 @@ class CustomCallback(BaseCallback):
                 episode_reward = 0
                 step_count = 0
                 
-                while not done and step_count < 2000:  # Increased safety limit from 1000 to 2000
+                while not done and step_count < 500:  # Reduced safety limit from 2000 to 500 for faster evaluation
                     action, _ = self.model.predict(obs, deterministic=True)
                     if isinstance(action, np.ndarray):
                         action = action.item()  # Convert numpy array to scalar
@@ -356,7 +356,7 @@ class CustomCallback(BaseCallback):
                     if self.eval_verbose and step_count % 100 == 0:
                         print(f"      Step {step_count}, reward so far: {episode_reward:.2f}")
                 
-                if step_count >= 2000:
+                if step_count >= 500:
                     if self.eval_verbose:
                         print(f"    WARNING: Episode stopped after {step_count} steps (safety limit)")
                 
@@ -735,9 +735,8 @@ def train_model_with_saved_grids(model_path: Optional[str] = None,
         fast_mode: Whether to use faster training settings
         fast_eval: Whether to use faster evaluation settings
     """
-    # Force CPU usage for Intel/AMD systems
-    device = torch.device("cpu")
-    print("Using CPU for training (optimized for Intel i9)")
+    # Use the best available device (GPU/MPS/CPU)
+    device = get_device()
     
     # Check if organized data directories exist
     if not os.path.exists(data_dir):
@@ -854,9 +853,13 @@ def train_model_with_saved_grids(model_path: Optional[str] = None,
         print(f"  - Episodes per evaluation: {eval_episodes}")
         print(f"  - Verbose output: {eval_verbose}")
     else:
-        eval_freq = 10000   # Default: every 10k steps
-        eval_episodes = 3   # Default: 3 episodes
-        eval_verbose = True # Default: verbose output
+        eval_freq = 30000   # Increased from 20k to 30k (less frequent)
+        eval_episodes = 1   # Reduced from 2 to 1 episode (much faster)
+        eval_verbose = False # Reduced verbosity to speed up evaluation
+        print("Using standard evaluation mode:")
+        print(f"  - Evaluation frequency: every {eval_freq:,} steps")
+        print(f"  - Episodes per evaluation: {eval_episodes}")
+        print(f"  - Verbose output: {eval_verbose}")
     
     # Create callback
     callback = CustomCallback(
@@ -902,10 +905,13 @@ if __name__ == "__main__":
     parser.add_argument('--create-plot', help='Create training plot for a specific model timestamp')
     args = parser.parse_args()
     
-    # Always use CPU for Intel/AMD systems
-    device = torch.device("cpu")
-    print("Using CPU for training (optimized for Intel i9)")
-    
+    # Use the best available device unless CPU is forced
+    if args.cpu:
+        device = torch.device("cpu")
+        print("Forcing CPU usage")
+    else:
+        device = get_device()
+
     if args.create_plot:
         # Create plot for existing model
         training_data = load_training_data(args.create_plot)

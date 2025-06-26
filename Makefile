@@ -56,11 +56,20 @@ train-long:
 train-fast:
 	. fruitbox_env/bin/activate && python training.py --mode train --timesteps 500000 --use-saved-grids
 
+train-fast-cpu:
+	. fruitbox_env/bin/activate && python training.py --mode train --timesteps 500000 --use-saved-grids --cpu
+
 train-fast-quick:
 	. fruitbox_env/bin/activate && python training.py --mode train --timesteps 100000 --use-saved-grids --fast --fast-eval
 
+train-fast-quick-cpu:
+	. fruitbox_env/bin/activate && python training.py --mode train --timesteps 100000 --use-saved-grids --fast --fast-eval --cpu
+
 train-fast-tensorboard:
 	. fruitbox_env/bin/activate && python training.py --mode train --timesteps 500000 --use-saved-grids --tensorboard
+
+train-fast-tensorboard-cpu:
+	. fruitbox_env/bin/activate && python training.py --mode train --timesteps 500000 --use-saved-grids --tensorboard --cpu
 
 train-clean: venv-create train
 
@@ -148,4 +157,4 @@ plot-model:
 	fi
 	. fruitbox_env/bin/activate && python training.py --create-plot $(MODEL)
 
-.PHONY: run run-verbose run-test run-model run-model-verbose venv-create venv-activate organize-data organize-data-verify train train-long train-fast train-fast-quick train-fast-tensorboard train-clean evaluate evaluate-many evaluate-latest evaluate-latest-many continue-train continue-train-long list-models list-performance clean solve solve-quiet plot plot-model
+.PHONY: run run-verbose run-test run-model run-model-verbose venv-create venv-activate organize-data organize-data-verify train train-long train-fast train-fast-cpu train-fast-quick train-fast-quick-cpu train-fast-tensorboard train-fast-tensorboard-cpu train-clean evaluate evaluate-many evaluate-latest evaluate-latest-many continue-train continue-train-long list-models list-performance clean solve solve-quiet plot plot-model
