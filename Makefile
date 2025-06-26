@@ -10,6 +10,24 @@ run-verbose:
 run-test:
 	python main.py --test
 
+# Run the main script with a specific model
+run-model:
+	@if [ -z "$(MODEL)" ]; then \
+		echo "Error: Please specify a model path using MODEL=path/to/model.zip"; \
+		echo "Example: make run-model MODEL=models/model_20250626_102548.zip"; \
+		exit 1; \
+	fi
+	python main.py --model $(MODEL)
+
+# Run the main script with a specific model and verbose output
+run-model-verbose:
+	@if [ -z "$(MODEL)" ]; then \
+		echo "Error: Please specify a model path using MODEL=path/to/model.zip"; \
+		echo "Example: make run-model-verbose MODEL=models/model_20250626_102548.zip"; \
+		exit 1; \
+	fi
+	python main.py --model $(MODEL) --verbose
+
 # Virtual environment management
 venv-create:
 	python3 -m venv fruitbox_env
@@ -88,6 +106,10 @@ list-models:
 	@echo "Available models in models/ directory:"
 	@ls -l models/*.zip 2>/dev/null || echo "No models found in models/ directory"
 
+# List performance data for all models
+list-performance:
+	python list_performance.py
+
 # Clean up generated files
 clean:
 	rm -rf models/*.zip
@@ -126,4 +148,4 @@ plot-model:
 	fi
 	. fruitbox_env/bin/activate && python training.py --create-plot $(MODEL)
 
-.PHONY: run run-verbose run-test venv-create venv-activate organize-data organize-data-verify train train-long train-fast train-fast-quick train-fast-tensorboard train-clean evaluate evaluate-many evaluate-latest evaluate-latest-many continue-train continue-train-long list-models clean solve solve-quiet plot plot-model
+.PHONY: run run-verbose run-test run-model run-model-verbose venv-create venv-activate organize-data organize-data-verify train train-long train-fast train-fast-quick train-fast-tensorboard train-clean evaluate evaluate-many evaluate-latest evaluate-latest-many continue-train continue-train-long list-models list-performance clean solve solve-quiet plot plot-model

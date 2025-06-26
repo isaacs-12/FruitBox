@@ -598,9 +598,11 @@ def process_image_to_grid(image_path: Optional[str] = None,
         # Group digits into rows based on y-coordinates
         y_coords = sorted(set(r['position'][1] for r in results))
         
+        # Calculate average height for threshold calculations
+        avg_height = sum(r['position'][3] for r in results) / len(results)
+        
         # If we have more than 10 unique y-coordinates, we need to cluster them
         if len(y_coords) > 10:
-            avg_height = sum(r['position'][3] for r in results) / len(results)
             y_threshold = avg_height * 0.5
             
             # Group y-coordinates that are close together
