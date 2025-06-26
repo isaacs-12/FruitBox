@@ -54,6 +54,13 @@ evaluate-many:
 	fi
 	. fruitbox_env/bin/activate && python training.py --mode evaluate --model-path $(MODEL) --eval-episodes 10
 
+# Evaluate latest model on training grid
+evaluate-latest:
+	. fruitbox_env/bin/activate && python evaluate_model.py
+
+evaluate-latest-many:
+	. fruitbox_env/bin/activate && python evaluate_model.py --episodes 5
+
 # Continue training from a saved model
 continue-train:
 	@if [ -z "$(MODEL)" ]; then \
@@ -112,4 +119,4 @@ plot-model:
 	fi
 	. fruitbox_env/bin/activate && python training.py --create-plot $(MODEL)
 
-.PHONY: run run-verbose run-test venv-create venv-activate train train-long train-fast train-fast-quick train-fast-tensorboard train-clean evaluate evaluate-many continue-train continue-train-long list-models clean solve solve-quiet plot plot-model
+.PHONY: run run-verbose run-test venv-create venv-activate train train-long train-fast train-fast-quick train-fast-tensorboard train-clean evaluate evaluate-many evaluate-latest evaluate-latest-many continue-train continue-train-long list-models clean solve solve-quiet plot plot-model
