@@ -120,6 +120,13 @@ class RectangleEnv(gym.Env):
         # Count non-zero digits before clearing
         digits_before = np.count_nonzero(self.grid)
         
+        # Count non-zero digits in the rectangle (these are the ones that sum to 10)
+        non_zero_in_rectangle = 0
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                if self.grid[r, c] != 0:
+                    non_zero_in_rectangle += 1
+        
         # Zero out the rectangle
         for r in range(r1, r2 + 1):
             for c in range(c1, c2 + 1):
@@ -127,15 +134,14 @@ class RectangleEnv(gym.Env):
         
         # Count non-zero digits after clearing
         digits_after = np.count_nonzero(self.grid)
-        digits_cleared = digits_before - digits_after
         
-        # Calculate reward based on digits cleared
-        # Base reward is the number of digits cleared
-        reward = digits_cleared
+        # Calculate reward based on non-zero digits cleared (the ones that sum to 10)
+        # Base reward is the number of non-zero digits that were cleared
+        reward = non_zero_in_rectangle
         
         # Add a bonus for clearing a high percentage of remaining digits
         if digits_before > 0:
-            clear_percentage = digits_cleared / digits_before
+            clear_percentage = non_zero_in_rectangle / digits_before
             # Bonus scales with how much of the remaining digits were cleared
             # e.g., clearing 50% of remaining digits gives a 0.5x bonus
             reward *= (1 + clear_percentage)
@@ -148,7 +154,7 @@ class RectangleEnv(gym.Env):
         # Update episode tracking
         self.episode_reward += reward
         self.episode_length += 1
-        self.episode_digits_cleared += digits_cleared
+        self.episode_digits_cleared += non_zero_in_rectangle  # Track non-zero digits cleared
         self.last_action = (r1, c1, r2, c2)
         self.last_reward = reward
         

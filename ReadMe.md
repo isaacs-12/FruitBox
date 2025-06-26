@@ -116,9 +116,9 @@ The system uses a custom Gymnasium environment that simulates the FruitBox game:
 
 **Reward Function**: Optimized for digit clearing
 ```
-Reward = digits_cleared + completion_bonus
+Reward = non_zero_digits_cleared + completion_bonus
 ```
-- **digits_cleared**: Number of digits in the rectangle (including zeros)
+- **non_zero_digits_cleared**: Number of non-zero digits in the rectangle (max 10 per action)
 - **completion_bonus**: +1000 if grid is completely cleared
 - **Efficiency bonus**: Higher rewards for clearing more digits per action
 
