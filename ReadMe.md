@@ -13,19 +13,21 @@ This project automates the solving of the FruitBox game puzzles where:
 Example board:
 ![image](https://github.com/user-attachments/assets/9750e323-de96-4bf6-abee-af6033f9763c)
 
-
 ## 🏗️ Architecture
 
 The project consists of several key components:
 
 ### Core Components
 
-- **`main.py`** - Main entry point that orchestrates the entire process
+- **`main.py`** - Main entry point that orchestrates the entire process with performance tracking
 - **`ocr_grid.py`** - Optical Character Recognition for digit extraction from screenshots
 - **`solver.py`** - Multiple solving algorithms (greedy, backtracking, ML-based)
 - **`clicker.py`** - Automated mouse clicking to execute solutions
 - **`training.py`** - Reinforcement learning environment and training pipeline
 - **`gemini.py`** - Alternative OCR implementation using Tesseract
+- **`evaluate_model.py`** - Model evaluation on test grids
+- **`organize_data.py`** - Data organization and train/validation/test splitting
+- **`list_performance.py`** - Performance tracking and visualization
 
 ### Supporting Files
 
@@ -60,17 +62,21 @@ The project consists of several key components:
 - **PPO Algorithm**: Proximal Policy Optimization for training
 - **Data Collection**: Automated collection of training grids from gameplay
 - **Model Evaluation**: Comprehensive evaluation and comparison tools
+- **Performance Tracking**: Per-model performance tracking and visualization
 
 ## 📁 Project Structure
 
 ```
 FruitBox/
-├── main.py                 # Main entry point
+├── main.py                 # Main entry point with performance tracking
 ├── ocr_grid.py            # OCR and digit recognition
-├── solver.py              # Solving algorithms
+├── solver.py              # Solving algorithms (greedy, backtracking, ML)
 ├── clicker.py             # Automated clicking
 ├── training.py            # ML training environment
 ├── gemini.py              # Alternative OCR implementation
+├── evaluate_model.py      # Model evaluation on test grids
+├── organize_data.py       # Data organization and splitting
+├── list_performance.py    # Performance tracking and visualization
 ├── utils.py               # Utility functions
 ├── eval_comparison.py     # Evaluation analysis
 ├── training_data.py       # Data collection
@@ -79,13 +85,157 @@ FruitBox/
 ├── digits/               # Digit template images
 ├── models/               # Trained ML models
 ├── screenshots/          # Captured game screenshots
-├── training_grids/       # Collected training data
+├── training_grids/       # Raw collected training data
+├── data/                 # Organized data with train/validation/test split
+│   ├── train/           # Training grids (80% of data)
+│   ├── validation/      # Validation grids (10% of data)
+│   ├── test/            # Test grids (10% of data)
+│   └── split_summary.pkl # Data split information
 ├── training_data/        # Training episode data
 ├── logs/                 # Training logs
-└── test_data/           # Test images
-└── data/                 # Grids parsed into train/test/eval for isolation
-
+├── plots/               # Training performance plots
+├── test_data/           # Test images
+└── performance_data_*.json # Per-model performance tracking
 ```
+
+## 🧠 Model Training Approach
+
+### Reinforcement Learning Environment
+
+The system uses a custom Gymnasium environment that simulates the FruitBox game:
+
+**State Space**: 10×17 grid with digits 0-9
+- Each cell contains a digit (0-9)
+- Grid represents the current game state
+- Zeros indicate cleared cells
+
+**Action Space**: All possible rectangles
+- Discrete action space representing rectangle coordinates
+- Actions are (r1, c1, r2, c2) defining rectangle corners
+- Invalid actions (rectangles that don't sum to 10) are masked out
+
+**Reward Function**: Optimized for digit clearing
+```
+Reward = digits_cleared + completion_bonus
+```
+- **digits_cleared**: Number of digits in the rectangle (including zeros)
+- **completion_bonus**: +1000 if grid is completely cleared
+- **Efficiency bonus**: Higher rewards for clearing more digits per action
+
+### Training Process
+
+1. **Data Collection**: 
+   - Automatically captures grids during gameplay
+   - Validates grids have exactly 170 non-zero digits
+   - Organizes data into train/validation/test splits
+
+2. **Environment Setup**:
+   - Custom Gymnasium environment for rectangle solving
+   - Action masking to prevent invalid moves
+   - Episode termination when no valid moves remain
+
+3. **Model Training**:
+   - **Algorithm**: Proximal Policy Optimization (PPO)
+   - **Policy**: Multi-layer perceptron (MLP) with 256×256 hidden layers
+   - **Optimization**: Adam optimizer with learning rate 3e-4
+   - **Batch Size**: 256 with 2048 steps per update
+
+4. **Evaluation Strategy**:
+   - Regular evaluation on validation grids every 30k steps
+   - Fast evaluation mode with reduced episodes for speed
+   - Model saving based on validation performance
+
+5. **Hardware Optimization**:
+   - **Apple Silicon**: Uses MPS (Metal Performance Shaders) for acceleration
+   - **CUDA**: Supports NVIDIA GPU acceleration
+   - **CPU Fallback**: Optimized CPU training for other systems
+
+### Training Commands
+
+```bash
+# Quick training (100k steps)
+make train-fast-quick
+
+# Standard training (500k steps)
+make train-fast
+
+# Long training (2M steps)
+make train-long
+
+# Training with TensorBoard logging
+make train-fast-tensorboard
+
+# Force CPU usage
+make train-fast-cpu
+```
+
+### Model Performance
+
+- **Training Data**: 1,000+ grids with proper train/validation/test split
+- **Validation Performance**: Models typically achieve 130-150 digits cleared
+- **Training Time**: 30-60 minutes for 500k steps on Apple M4
+- **Model Size**: ~2-3MB compressed models
+
+## 🔍 Brute Force Approach
+
+### Algorithm Overview
+
+The brute force approach uses exhaustive search to find the optimal solution by exploring all possible rectangle combinations:
+
+**Core Strategy**:
+1. **Generate all valid rectangles**: Find all rectangles where digits sum to 10
+2. **Exhaustive search**: Try all possible combinations of rectangles
+3. **Optimization**: Find the combination that clears the most digits
+
+### Implementation Details
+
+**Rectangle Generation**:
+```python
+def find_rectangles_zero_inclusive_greedy(grid):
+    # Find all rectangles where non-zero digits sum to 10
+    # Include zeros in rectangle size but not in sum
+    # Return rectangles sorted by digit clearing efficiency
+```
+
+**Search Algorithms**:
+
+1. **Greedy Approach** (`find_rectangles_digit_priority_greedy`):
+   - Prioritizes rectangles that clear more digits
+   - Fast but not guaranteed optimal
+   - Time complexity: O(n²) where n = grid cells
+
+2. **Backtracking Search** (`solve_rectangles_backtracking`):
+   - Exhaustive search of all rectangle combinations
+   - Guaranteed to find optimal solution
+   - Time complexity: O(2^n) - exponential growth
+
+3. **Digit Priority Greedy**:
+   - Optimized greedy algorithm
+   - Balances speed and solution quality
+   - Time complexity: O(n² log n)
+
+### Performance Characteristics
+
+**Greedy Algorithm**:
+- **Speed**: Very fast (< 1 second)
+- **Quality**: Good solutions (120-140 digits cleared)
+- **Guarantee**: Not optimal but practical
+
+**Backtracking Algorithm**:
+- **Speed**: Slow (minutes to hours for complex grids)
+- **Quality**: Optimal solution
+- **Guarantee**: Always finds best possible solution
+
+**Digit Priority Greedy**:
+- **Speed**: Fast (1-5 seconds)
+- **Quality**: Very good solutions (130-150 digits cleared)
+- **Guarantee**: Not optimal but excellent practical performance
+
+### Use Cases
+
+**Greedy**: Real-time solving during gameplay
+**Backtracking**: Analysis and verification of optimal solutions
+**Digit Priority**: Best balance of speed and quality for most applications
 
 ## 🛠️ Installation
 
@@ -136,6 +286,23 @@ FruitBox/
    make run-test
    ```
 
+4. **Run with specific model:**
+   ```bash
+   make run-model MODEL=models/model_20250626_102548.zip
+   ```
+
+### Data Organization
+
+1. **Organize training data:**
+   ```bash
+   make organize-data
+   ```
+
+2. **Verify data isolation:**
+   ```bash
+   make organize-data-verify
+   ```
+
 ### Machine Learning Training
 
 1. **Quick training:**
@@ -153,19 +320,34 @@ FruitBox/
    make train-fast-tensorboard
    ```
 
-### Model Evaluation
-
-1. **Evaluate a model:**
+4. **Force CPU training:**
    ```bash
-   make evaluate MODEL=models/your_model.zip
+   make train-fast-cpu
    ```
 
-2. **List available models:**
+### Model Evaluation
+
+1. **Evaluate latest model:**
+   ```bash
+   make evaluate-latest
+   ```
+
+2. **Evaluate with multiple episodes:**
+   ```bash
+   make evaluate-latest-many
+   ```
+
+3. **List available models:**
    ```bash
    make list-models
    ```
 
-3. **Continue training from existing model:**
+4. **List performance data:**
+   ```bash
+   make list-performance
+   ```
+
+5. **Continue training from existing model:**
    ```bash
    make continue-train MODEL=models/your_model.zip
    ```
@@ -175,8 +357,8 @@ FruitBox/
 ### Screen Coordinates
 Adjust the screen coordinates in `main.py` for your specific setup:
 ```python
-region = (10, 172, 1431, 842)  # (left, top, width, height)
-screen_offset = (10, 172)     # (x, y) offset
+region = (18, 202, 1223, 723)  # (left, top, width, height)
+screen_offset = (18, 202)     # (x, y) offset
 ```
 
 ### Solving Methods
@@ -191,25 +373,6 @@ Configure training in `training.py`:
 - `eval_freq` - Evaluation frequency
 - `eval_episodes` - Episodes per evaluation
 
-## 🤖 Machine Learning Details
-
-### Environment
-- **State Space**: 10x17 grid with digits 0-9
-- **Action Space**: All possible rectangles (discrete)
-- **Reward Function**: Based on digits cleared with completion bonuses
-
-### Training Process
-1. **Data Collection**: Automatically captures grids during gameplay
-2. **Environment Setup**: Custom Gymnasium environment for rectangle solving
-3. **Model Training**: PPO algorithm with action masking
-4. **Evaluation**: Regular evaluation on validation grids
-5. **Model Saving**: Automatic saving of best performing models
-
-### Model Performance
-- Trained models can solve grids with 130+ digits cleared
-- Evaluation includes multiple metrics and comparison tools
-- Supports model continuation and fine-tuning
-
 ## 📊 Performance
 
 The system achieves:
@@ -217,6 +380,7 @@ The system achieves:
 - **Solving Speed**: Sub-second solving for most grids
 - **Clicking Accuracy**: Precise coordinate mapping and execution
 - **Training Efficiency**: Fast convergence with PPO algorithm
+- **Model Performance**: 130-150 digits cleared consistently
 
 ## 🔍 Debugging
 
@@ -254,9 +418,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **PyAutoGUI** for automation
 - **Stable Baselines3** for reinforcement learning
 - **Gymnasium** for the RL environment framework
+- **PyTorch** for deep learning framework
 
 ## 🐛 Known Issues
 
 - Screen coordinates may need adjustment for different screen resolutions
 - OCR accuracy can vary based on font and image quality
 - Training requires significant computational resources (though it will take advantage of your hardware if you have Apple Silicon, NVidia Cuda, or just a CPU)
+- Brute force backtracking can be very slow for complex grids
